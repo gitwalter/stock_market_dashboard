@@ -23,10 +23,10 @@ import backtrader
 
 from analyzer.MomentumScore import MomentumScore
 
-from strategy.BuyAndHold import *
-from strategy.MinerviniMomentum import *
-from strategy.SmaCross import *
-from strategy.TrailingStopLoss import *
+from strategy.BuyAndHold import BuyAndHold
+from strategy.MinerviniMomentum import MinerviniMomentum
+from strategy.SmaCross import SmaCross
+from strategy.TrailingStopLoss import TrailingStopLoss
 
 @st.cache_data
 def start():
