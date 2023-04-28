@@ -26,6 +26,8 @@ from strategy.BuyAndHold import BuyAndHold
 from strategy.MinerviniMomentum import MinerviniMomentum
 from strategy.SmaCross import SmaCross
 from strategy.TrailingStopLoss import TrailingStopLoss
+from analyzer.MomentumScore import MomentumScore
+
 
 @st.cache_data
 def start():
@@ -35,9 +37,6 @@ def start():
 # set current directory to read and write files
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
-momentum_window = 125
-minimum_momentum = 40
-vola_window = 20
 
 def momentum_score(ts):
     """
@@ -283,24 +282,11 @@ class StockMarketDashboard:
             stocks = self.selected_symbols.index.tolist()
         
         if st.sidebar.button("Calculate Momentum"):
+            momentum_score = MomentumScore()
             last_trading_day, collected_prices = self.get_prices_last_trading_day(stocks)
             collected_prices = collected_prices['Close']
-            dc = []
-            for i in collected_prices.columns:
-                dc.append(collected_prices[i].pct_change().sum())
-
-            intraday_momentum = pd.DataFrame(columns = ['symbol', 'day_change'])
-            intraday_momentum['symbol'] = collected_prices.columns
-            intraday_momentum['day_change'] = dc
-
-            # CALCULATING MOMENTUM
-
-            intraday_momentum['momentum'] = 'N/A'
-            for i in range(len(intraday_momentum)):
-                intraday_momentum.loc[i, 'momentum'] = score(intraday_momentum.day_change, intraday_momentum.loc[i, 'day_change'])/100
-    
-            intraday_momentum['momentum'] = intraday_momentum['momentum'].astype(float)    
-            # intraday_momentum.head()
+            intraday_momentum = momentum_score.get_intraday_momentum(collected_prices)    
+            
             st.write(last_trading_day)
             st.dataframe(intraday_momentum)
             
@@ -314,16 +300,36 @@ class StockMarketDashboard:
 
             analysis_collected.index.name = 'Instrument'
 
+            
+
             for ticker in collected_prices:
                 ticker_price = collected_prices.filter(like=ticker)
                 
-                analysis_ticker = {'Score': momentum_score(ticker_price[ticker]),
-                                   'Volatility': volatility(ticker_price[ticker])}
+                analysis_ticker = {'Score': momentum_score.get_score(ticker_price[ticker]),
+                                   'Volatility': momentum_score.get_volatility(ticker_price[ticker])}
                 analysis_df = pd.DataFrame(analysis_ticker,index=[ticker])
                 analysis_df.index.name = 'Instrument'
                 analysis_collected = pd.concat([analysis_collected,analysis_df],axis=0) 
             
             st.dataframe(analysis_collected)
+
+    def get_intraday_momentum(self, collected_prices):
+        dc = []
+        for i in collected_prices.columns:
+            dc.append(collected_prices[i].pct_change().sum())
+
+        intraday_momentum = pd.DataFrame(columns = ['symbol', 'day_change'])
+        intraday_momentum['symbol'] = collected_prices.columns
+        intraday_momentum['day_change'] = dc
+
+            # CALCULATING MOMENTUM
+
+        intraday_momentum['momentum'] = 'N/A'
+        for i in range(len(intraday_momentum)):
+            intraday_momentum.loc[i, 'momentum'] = score(intraday_momentum.day_change, intraday_momentum.loc[i, 'day_change'])/100
+    
+        intraday_momentum['momentum'] = intraday_momentum['momentum'].astype(float)
+        return intraday_momentum
 
     def quant_figure_days(self):
         df_ticker_period = self.download_instrument_price([self.symbol], self.start_date, self.end_date, self.ONE_DAY)
