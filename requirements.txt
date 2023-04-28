@@ -2,7 +2,6 @@ streamlit
 pandas
 matplotlib
 yfinance
-os
 datetime
 pytickersymbols
 cufflinks
