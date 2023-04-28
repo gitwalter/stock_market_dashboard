@@ -281,6 +281,27 @@ class StockMarketDashboard:
             
             st.dataframe(analysis_collected)
 
+    def handle_option_sectors(self):
+        sectors = {'Technology':'XLK', 'Healthcare':'XLV', 'Finance':'XLF', 'Real Estate':'XLRE', 'Energy':'XLE', 'Materials':'XLB', \
+                   'Consumer Discretionary':'XLY', 'Industrials':'XLI', 'Utilities':'XLU', 'Consumer Staples':'XLP', 'Telecommunication':'XLC'}
+        # st.write(sectors)           
+        # sector_etf_tickers = ['XLK', 'XLV', 'XLF', 'XLRE', 'XLE', 'XLB', 'XLY', 'XLI', 'XLU', 'XLP', 'XLC']
+        sector_etf_tickers = ['XLK', 'XLV', 'XLF', 'XLRE', 'XLE', 'XLB', 'XLY', 'XLI', 'XLU', 'XLP', 'XLC']
+        self.get_chart_indicators()
+        self.get_start_end()
+        
+        i = 0
+        for sector in sectors:
+            st.write(sector)
+            self.symbol = sectors[sector]
+            self.symbol_name = sectors[sector]
+            self.quant_figure_minutes()         
+            self.quant_figure_days()
+            i +=1
+       
+
+        
+
     def quant_figure_days(self):
         df_ticker_period = self.download_instrument_price([self.symbol], self.start_date, self.end_date, self.ONE_DAY)
         if df_ticker_period.empty:            
@@ -339,7 +360,7 @@ class StockMarketDashboard:
                 counter += 1
     
     def __init__(self):
-        self.options = ["Overview", "Chart", "Momentum", "Returns", "Backtest"]
+        self.options = ["Overview", "Sectors", "Chart", "Momentum", "Returns", "Backtest"]
         self.types = ["Stocks", "Currencies", "Commodities", "Cryptocurrencies", "ETF"]
         self.exchanges = ["NASDAQ", "NYSE", "London", "Frankfurt", "Paris", "Amsterdam",
                      "BorsaItaliana", "BolsaDeMadrid", "Oslo", "Zurich", "HongKong", "Helsinki", "Copenhagen", "Stockholm"]
@@ -373,7 +394,9 @@ class StockMarketDashboard:
         if self.option == 'Returns':
             self.handle_option_returns()
         if self.option == 'Momentum':
-            self.handle_option_momentum()            
+            self.handle_option_momentum()  
+        if self.option ==  'Sectors':
+            self.handle_option_sectors()
 
 
 application = start()
