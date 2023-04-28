@@ -1,35 +1,31 @@
+import streamlit as st
+
+import os
+from datetime import timedelta
 from datetime import datetime
+
+import matplotlib
+import matplotlib.pyplot as plt
 
 from pandas.tseries.holiday import USFederalHolidayCalendar
 from pandas.tseries.offsets import CustomBusinessDay
-import numpy as np
 import pandas as pd
-import matplotlib
-import matplotlib.pyplot as plt
-import streamlit as st
-import yfinance as yf
-import cufflinks as cf
-import os
-from datetime import timedelta
-from scipy import stats 
-from pytickersymbols import PyTickerSymbols
 
-from scipy.stats import percentileofscore as score
+import yfinance as yf
+from pytickersymbols import PyTickerSymbols
+import cufflinks as cf
 
 from datafeed.downloader import BatchPriceDownloader
 from datafeed.downloader import InfoDownloader
 from datafeed.etoro import SymbolScraper
-
 
 import backtrader
 from strategy.BuyAndHold import BuyAndHold
 from strategy.MinerviniMomentum import MinerviniMomentum
 from strategy.SmaCross import SmaCross
 from strategy.TrailingStopLoss import TrailingStopLoss
+
 from analyzer.MomentumScore import MomentumScore
-
-
-
 
 @st.cache_data
 def start():
