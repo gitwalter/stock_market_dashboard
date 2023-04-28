@@ -98,8 +98,7 @@ class MinerviniMomentum(bt.Strategy):
                condition_7 = True
            else:
                condition_7 = False
-           
-            
+                       
 
            if condition_1 and condition_2 and condition_3 and \
               condition_4 and condition_5 and condition_6 and condition_7:
