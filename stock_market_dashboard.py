@@ -23,6 +23,11 @@ import backtrader
 
 from analyzer.MomentumScore import MomentumScore
 
+from strategy.BuyAndHold import *
+from strategy.MinerviniMomentum import *
+from strategy.SmaCross import *
+from strategy.TrailingStopLoss import *
+
 @st.cache_data
 def start():
     # set current directory to read and write files
