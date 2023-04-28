@@ -1,11 +1,6 @@
-# Create a subclass of Strategy to define the indicators and logic
 import backtrader as bt
 
-
-
-
 class SmaCross(bt.Strategy):
-    # list of parameters which are configurable for the strategy
     params = dict(
         pfast=10,  # period for the fast moving average
         pslow=30   # period for the slow moving average

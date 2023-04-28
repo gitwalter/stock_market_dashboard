@@ -20,10 +20,6 @@ from datafeed.downloader import InfoDownloader
 from datafeed.etoro import SymbolScraper
 
 import backtrader
-from strategy.BuyAndHold import BuyAndHold
-from strategy.MinerviniMomentum import MinerviniMomentum
-from strategy.SmaCross import SmaCross
-from strategy.TrailingStopLoss import TrailingStopLoss
 
 from analyzer.MomentumScore import MomentumScore
 
