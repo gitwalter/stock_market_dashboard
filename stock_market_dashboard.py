@@ -29,37 +29,15 @@ from strategy.TrailingStopLoss import TrailingStopLoss
 from analyzer.MomentumScore import MomentumScore
 
 
+
+
 @st.cache_data
 def start():
+    # set current directory to read and write files
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    
     application = StockMarketDashboard()
     return application
-
-# set current directory to read and write files
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
-
-
-def momentum_score(ts):
-    """
-    Input:  Price time series.
-    Output: Annualized exponential regression slope, 
-            multiplied by the R2
-    """
-    # Make a list of consecutive numbers
-    x = np.arange(len(ts)) 
-    # Get logs
-    ts = np.float64(ts)
-    log_ts = np.log(ts) 
-    # Calculate regression values
-    slope, intercept, r_value, p_value, std_err = stats.linregress(x, log_ts)
-    # Annualize percent
-    annualized_slope = (np.power(np.exp(slope), 252) - 1) * 100
-    #Adjust for fitness
-    score = annualized_slope * (r_value ** 2)
-    return score
-
-def volatility(ts):
-    # ts = np.float64(ts)
-    return ts.pct_change().rolling(vola_window).std().iloc[-1]
 
 class StockMarketDashboard:
     ONE_DAY = '1d'
@@ -136,8 +114,7 @@ class StockMarketDashboard:
                 cerebro.addsizer(backtrader.sizers.SizerFix, stake=100)
                 cerebro.run()  # run it all                
                 matplotlib.use('Agg')
-                st.pyplot(cerebro.plot(iplot=True)[0][0])
-                # st.pyplot(figure)
+                st.pyplot(cerebro.plot(iplot=True)[0][0])                
 
 
     def get_start_end(self):
@@ -238,7 +215,7 @@ class StockMarketDashboard:
             st.header('Weekly Returns')
             weekly_returns = prices['Close'].resample('W').ffill().pct_change()
             st.dataframe(weekly_returns)
-            # st.line_chart((weekly_returns + 1).cumprod().dropna())            
+            
             fig, ax = plt.subplots()
             if len(weekly_returns.columns) >= 2:
                 for index, row in self.selected_symbols.iterrows():
@@ -247,7 +224,7 @@ class StockMarketDashboard:
                     ax.legend()
             else:
                 (weekly_returns + 1).cumprod().plot()
-            # plt.show()
+            
             st.pyplot(fig)
 
             st.header('Monthly Returns')
@@ -262,7 +239,6 @@ class StockMarketDashboard:
             st.dataframe(yearly_returns)
         
     def handle_option_momentum(self):
-        # S&P500 dataframe: list of tickers
         selected_market = st.sidebar.selectbox(options=["SP500", "NASDAQ100", "DJ30", "DAX", "eToro"], label="Market")        
         self.selected_symbols = self.filter_symbols()
         self.get_start_end()
@@ -312,24 +288,6 @@ class StockMarketDashboard:
                 analysis_collected = pd.concat([analysis_collected,analysis_df],axis=0) 
             
             st.dataframe(analysis_collected)
-
-    def get_intraday_momentum(self, collected_prices):
-        dc = []
-        for i in collected_prices.columns:
-            dc.append(collected_prices[i].pct_change().sum())
-
-        intraday_momentum = pd.DataFrame(columns = ['symbol', 'day_change'])
-        intraday_momentum['symbol'] = collected_prices.columns
-        intraday_momentum['day_change'] = dc
-
-            # CALCULATING MOMENTUM
-
-        intraday_momentum['momentum'] = 'N/A'
-        for i in range(len(intraday_momentum)):
-            intraday_momentum.loc[i, 'momentum'] = score(intraday_momentum.day_change, intraday_momentum.loc[i, 'day_change'])/100
-    
-        intraday_momentum['momentum'] = intraday_momentum['momentum'].astype(float)
-        return intraday_momentum
 
     def quant_figure_days(self):
         df_ticker_period = self.download_instrument_price([self.symbol], self.start_date, self.end_date, self.ONE_DAY)
