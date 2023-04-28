@@ -191,8 +191,7 @@ class StockMarketDashboard:
 
         if not browse_charts :
             display_quantfigure = st.sidebar.button('Show Charts')
-        
-                
+                        
         if display_quantfigure or browse_charts:
             self.quant_figure_minutes()         
             self.quant_figure_days()
@@ -271,9 +270,7 @@ class StockMarketDashboard:
 
             analysis_collected = pd.DataFrame(columns=columns)
 
-            analysis_collected.index.name = 'Instrument'
-
-            
+            analysis_collected.index.name = 'Instrument'          
 
             for ticker in collected_prices:
                 ticker_price = collected_prices.filter(like=ticker)
@@ -287,25 +284,17 @@ class StockMarketDashboard:
             st.dataframe(analysis_collected)
 
     def handle_option_sectors(self):
-        sectors = {'Technology':'XLK', 'Healthcare':'XLV', 'Finance':'XLF', 'Real Estate':'XLRE', 'Energy':'XLE', 'Materials':'XLB', \
+        sector_etf = {'Technology':'XLK', 'Healthcare':'XLV', 'Finance':'XLF', 'Real Estate':'XLRE', 'Energy':'XLE', 'Materials':'XLB', \
                    'Consumer Discretionary':'XLY', 'Industrials':'XLI', 'Utilities':'XLU', 'Consumer Staples':'XLP', 'Telecommunication':'XLC'}
-        # st.write(sectors)           
-        # sector_etf_tickers = ['XLK', 'XLV', 'XLF', 'XLRE', 'XLE', 'XLB', 'XLY', 'XLI', 'XLU', 'XLP', 'XLC']
-        sector_etf_tickers = ['XLK', 'XLV', 'XLF', 'XLRE', 'XLE', 'XLB', 'XLY', 'XLI', 'XLU', 'XLP', 'XLC']
+        
         self.get_chart_indicators()
         self.get_start_end()
         
-        i = 0
-        for sector in sectors:
-            st.write(sector)
-            self.symbol = sectors[sector]
-            self.symbol_name = sectors[sector]
+        for sector in sector_etf:
+            self.symbol = sector_etf[sector]
+            self.symbol_name = sector + ' ' +  sector_etf[sector]
             self.quant_figure_minutes()         
-            self.quant_figure_days()
-            i +=1
-       
-
-        
+            self.quant_figure_days()                   
 
     def quant_figure_days(self):
         df_ticker_period = self.download_instrument_price([self.symbol], self.start_date, self.end_date, self.ONE_DAY)
