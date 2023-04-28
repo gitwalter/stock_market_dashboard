@@ -118,8 +118,7 @@ class MinerviniMomentum(bt.Strategy):
                position_size = self.getposition(d).size
                if position_size and not condition_3:
                    # sell is done by trailing stop
-                   # if sma200 is lower then sma200 20 days ago
-                   # return
+                   # if sma200 crosses below sma200 20 days ago
                     self.order[d] = self.close(data=d, size=position_size)
                
            

@@ -14,10 +14,9 @@ class BuyAndHold(bt.Strategy):
         for d in self.datas:   
             pos = self.getposition(d).size
             if not pos and not self.order[d]:
-                close = d.close[0]
-                # Buy all the available cash
-                equities = len(self.datas)
-                # size = int((self.broker.get_cash() *0.8 / self.data) / equities )
+                close = d.close[0]                
+                equities = len(self.datas)            
+                # buy with 95% of cash
                 size = int(((self.broker.get_cash() * 0.95 / close)) / equities)
                 self.order[d] = self.buy(data=d, size=size)
 
