@@ -159,13 +159,10 @@ class StockMarketDashboard:
             if check:
                 quantfigure_method = self.quant_figure_indicators['methods'][counter]                
                 getattr(qf, quantfigure_method)()
-            counter += 1
-            
-              
+            counter += 1                          
             
         fig = qf.iplot(asFigure=True, dimensions=(800, 600))
 
-        # Render plot using plotly_chart
         st.plotly_chart(fig)
 
        
@@ -283,15 +280,12 @@ class StockMarketDashboard:
             st.dataframe(analysis_collected)
 
     def handle_option_sectors(self):
-        sector_etf = {'Technology':'XLK', 'Healthcare':'XLV', 'Finance':'XLF', 'Real Estate':'XLRE', 'Energy':'XLE', 'Materials':'XLB', \
-                   'Consumer Discretionary':'XLY', 'Industrials':'XLI', 'Utilities':'XLU', 'Consumer Staples':'XLP', 'Telecommunication':'XLC'}
-        
         self.get_chart_indicators()
         self.get_start_end()
         
-        for sector in sector_etf:
-            self.symbol = sector_etf[sector]
-            self.symbol_name = sector + ' ' +  sector_etf[sector]
+        for sector in self.sector_etf:
+            self.symbol = self.sector_etf[sector]
+            self.symbol_name = sector + ' ' +  self.sector_etf[sector]
             self.quant_figure_minutes()         
             self.quant_figure_days()                   
 
@@ -360,6 +354,9 @@ class StockMarketDashboard:
         self.industries = ["-", "BasicMaterials", "ConsumerGoods", "Technology",
                       "Services", "Financial", "IndustrialGoods", "Healthcare"
                     "Conglomerates", "Utilities"]
+        
+        self.sector_etf = {'Technology':'XLK', 'Healthcare':'XLV', 'Finance':'XLF', 'Real Estate':'XLRE', 'Energy':'XLE', 'Materials':'XLB', \
+                           'Consumer Discretionary':'XLY', 'Industrials':'XLI', 'Utilities':'XLU', 'Consumer Staples':'XLP', 'Telecommunication':'XLC'}
 
         self.strategies = ["BuyAndHold", "MinerviniMomentum", "TrailingStopLoss", "SmaCross"]
         self.overview_tickers = ['^DJI', '^GSPC', '^NDX', '^IXIC', '^GDAXI', '^HSI', 'EURUSD=X', 'GC=F', 'BTC-USD']          
