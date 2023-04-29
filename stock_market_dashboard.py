@@ -186,7 +186,6 @@ class StockMarketDashboard:
 
         browse_charts = st.sidebar.checkbox('Browse Charts')
         
-        # initialization
         display_quantfigure = False
 
         if not browse_charts :
