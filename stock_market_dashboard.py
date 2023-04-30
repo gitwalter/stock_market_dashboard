@@ -28,7 +28,7 @@ from strategy.MinerviniMomentum import MinerviniMomentum
 from strategy.SmaCross import SmaCross
 from strategy.TrailingStopLoss import TrailingStopLoss
 
-@st.cache_data
+@st.experimental_memo
 def start():
     # set current directory to read and write files
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
@@ -39,7 +39,7 @@ def start():
 class StockMarketDashboard:
     ONE_DAY = '1d'
     ONE_MINUTE = '1m'
-    @st.cache_data()
+    @st.experimental_memo()
     def load_etoro_file(_self):
         path = "etoro.csv"
         try:
@@ -50,7 +50,7 @@ class StockMarketDashboard:
 
         return symbols
     
-    @st.cache_data
+    @st.experimental_memo
     def download_instrument_price(_self, tickers_list, start_date, end_date, interval):
         downloader = BatchPriceDownloader(tickers_list, start_date, end_date, interval)
         prices = downloader.get_yahoo_prices()
