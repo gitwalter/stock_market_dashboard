@@ -1,6 +1,8 @@
 import streamlit as st
 
 import os
+from io import StringIO
+
 from datetime import timedelta
 from datetime import datetime
 
@@ -84,10 +86,10 @@ class StockMarketDashboard:
         self.symbol_name = st.selectbox("Select Instrument", self.symbols.name)
         self.symbol = self.symbols.loc[self.symbols['name'] == self.symbol_name].index[0]        
         
-    def get_symbols(self):
+    def get_symbols_from_multiselect(self):
         
         self.symbols = self.filter_symbols()
-        self.selected_symbol_names = st.sidebar.multiselect("Select Instrument", self.symbols.name)
+        self.selected_symbol_names = st.sidebar.multiselect("Select Instruments", self.symbols.name)
         
         self.selected_symbols = self.symbols.loc[self.symbols['name'].isin(self.selected_symbol_names)]                
 
@@ -134,12 +136,43 @@ class StockMarketDashboard:
             self.quant_figure_minutes()         
             self.quant_figure_days()
 
+    def handle_option_watchlist(self):
+
+        stocks = self.get_selected_stocks()        
+        self.get_chart_indicators()
+        self.get_start_end()
+
+        show_minutes = st.sidebar.checkbox('Show Minutes')
+        show_days = st.sidebar.checkbox('Show Days')
+
+        uploaded_file = st.file_uploader("Choose a csv-file with columns '''Symbol''' and '''Name''' for stock symbols and names")
+        if uploaded_file is not None:                        
+            tickers = pd.read_csv(uploaded_file)
+            st.write(tickers)
+            for ticker in tickers.iterrows():                
+                self.symbol = ticker[1]['Symbol']
+                self.symbol_name = ticker[1]['Name']
+                if show_minutes:
+                    self.quant_figure_minutes()         
+                if show_days:
+                    self.quant_figure_days()
+        
+
+        if st.sidebar.button('Display Charts') and uploaded_file is None:
+            for ticker in stocks:
+                self.symbol = ticker
+                self.symbol_name = ticker
+                if show_minutes:
+                    self.quant_figure_minutes()         
+                if show_days:
+                    self.quant_figure_days()
 
     def plot_quant_figure(self,prices,name,title):
         # nothing to plot
         if prices.empty:
             return
         
+        st.write(title)
         # Create candlestick chart 
         qf = cf.QuantFig(prices, legend='bottom', name=name, title=title)
         counter = 0
@@ -193,7 +226,7 @@ class StockMarketDashboard:
             self.quant_figure_days()
 
     def handle_option_returns(self):
-        self.get_symbols()
+        self.get_symbols_from_multiselect()
         self.get_start_end()
 
         if self.selected_symbol_names:
@@ -231,24 +264,10 @@ class StockMarketDashboard:
             st.dataframe(yearly_returns)
         
     def handle_option_momentum(self):
-        selected_market = st.sidebar.selectbox(options=["SP500", "NASDAQ100", "DJ30", "DAX", "eToro"], label="Market")        
-        self.selected_symbols = self.filter_symbols()
+        stocks = self.get_selected_stocks()
+        
         self.get_start_end()
 
-        stock_data = PyTickerSymbols()
-        
-        if selected_market == 'DJ30':
-            stocks = stock_data.get_dow_jones_nyc_yahoo_tickers()
-        if selected_market == 'DAX':
-            stocks = stock_data.get_dax_frankfurt_yahoo_tickers()
-        if selected_market == 'SP500':
-            stocks = stock_data.get_sp_500_nyc_yahoo_tickers()
-        if selected_market == 'NASDAQ100':
-            stocks = stock_data.get_nasdaq_100_nyc_yahoo_tickers()
-
-        if selected_market == 'eToro':
-            stocks = self.selected_symbols.index.tolist()
-        
         if st.sidebar.button("Calculate Momentum"):
             momentum_score = MomentumScore()
             last_trading_day, collected_prices = self.get_prices_last_trading_day(stocks)
@@ -278,6 +297,28 @@ class StockMarketDashboard:
                 analysis_collected = pd.concat([analysis_collected,analysis_df],axis=0) 
             
             st.dataframe(analysis_collected)
+
+    def get_selected_stocks(self):
+        selected_market = st.sidebar.selectbox(options=["SP500", "NASDAQ100", "DJ30", "DAX", "eToro"], label="Market")        
+        
+
+        stock_data = PyTickerSymbols()
+        
+        if selected_market == 'DJ30':
+            stocks = stock_data.get_dow_jones_nyc_yahoo_tickers()
+        if selected_market == 'DAX':
+            stocks = stock_data.get_dax_frankfurt_yahoo_tickers()
+        if selected_market == 'SP500':
+            stocks = stock_data.get_sp_500_nyc_yahoo_tickers()
+        if selected_market == 'NASDAQ100':
+            stocks = stock_data.get_nasdaq_100_nyc_yahoo_tickers()
+
+        if selected_market == 'eToro':
+            # self.selected_symbols = self.filter_symbols()
+            self.get_symbols_from_multiselect()        
+            stocks = self.selected_symbols.index.tolist()
+            
+        return stocks
 
     def handle_option_sectors(self):
         self.get_chart_indicators()
@@ -347,7 +388,7 @@ class StockMarketDashboard:
                 counter += 1
     
     def __init__(self):
-        self.options = ["Overview", "Sectors", "Chart", "Momentum", "Returns", "Backtest"]
+        self.options = ["Overview", "Sectors", "Chart", "Watchlist", "Momentum", "Returns", "Backtest"]
         self.types = ["Stocks", "Currencies", "Commodities", "Cryptocurrencies", "ETF"]
         self.exchanges = ["NASDAQ", "NYSE", "London", "Frankfurt", "Paris", "Amsterdam",
                      "BorsaItaliana", "BolsaDeMadrid", "Oslo", "Zurich", "HongKong", "Helsinki", "Copenhagen", "Stockholm"]
@@ -381,6 +422,8 @@ class StockMarketDashboard:
             self.handle_option_chart()
         if self.option == 'Overview':
             self.handle_option_overview()
+        if self.option == 'Watchlist':
+            self.handle_option_watchlist()
         if self.option == 'Returns':
             self.handle_option_returns()
         if self.option == 'Momentum':
