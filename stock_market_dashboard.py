@@ -30,7 +30,6 @@ from strategy.MinerviniMomentum import MinerviniMomentum
 from strategy.SmaCross import SmaCross
 from strategy.TrailingStopLoss import TrailingStopLoss
 
-@st.cache_data
 def start():
     # set current directory to read and write files
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
