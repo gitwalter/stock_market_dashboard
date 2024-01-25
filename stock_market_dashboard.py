@@ -98,10 +98,13 @@ class StockMarketDashboard:
         self.selected_symbol_names = st.sidebar.multiselect(
             "Select Instruments", self.symbols.name)
 
+
         if self.selected_symbol_names:
+            # set selected symbols filtered by name
             self.selected_symbols = self.symbols.loc[self.symbols['name'].isin(
                 self.selected_symbol_names)]
         else:
+            # no name selected take symbols filtered by type, exchange, industry
             self.selected_symbols = self.symbols
 
     def handle_option_backtest(self):
@@ -250,18 +253,35 @@ class StockMarketDashboard:
         self.get_symbols_from_multiselect()
         self.get_start_end()
 
-        if self.selected_symbol_names:
+        if not self.selected_symbols.empty:
             download = BatchPriceDownloader(self.selected_symbols.index.tolist(
             ), self.start_date, self.end_date, self.ONE_DAY)
             prices = download.get_yahoo_prices()
 
             st.header('Daily Returns')
             daily_returns = prices['Close'].pct_change()
-            st.dataframe(daily_returns)
+
+            # Find the last date in the DataFrame
+            last_date = daily_returns.index[-1]
+
+            # Select rows corresponding to the last date
+            last_date_returns = daily_returns.loc[last_date]
+
+            # Transpose the DataFrame to have ticker names as the index
+            daily_stock_returns = last_date_returns.transpose()
+
+            # Rename the index to 'Ticker'
+            daily_stock_returns.index.name = 'Ticker'
+                        
+            st.dataframe(daily_stock_returns)
 
             st.header('Weekly Returns')
             weekly_returns = prices['Close'].resample('W').ffill().pct_change()
             st.dataframe(weekly_returns)
+            last_weekly_returns = weekly_returns.loc[weekly_returns.index[-1]]
+            last_weekly_stock_returns = last_weekly_returns.transpose()
+            last_weekly_stock_returns.index.name = 'Ticker'
+            st.dataframe(last_weekly_stock_returns)
 
             fig, ax = plt.subplots()
             if len(weekly_returns.columns) >= 2:
@@ -278,12 +298,20 @@ class StockMarketDashboard:
             monthly_returns = prices['Close'].resample(
                 'M').ffill().pct_change()
             st.dataframe(monthly_returns)
-            st.line_chart((monthly_returns + 1).cumprod().dropna())
+            last_monthly_returns = monthly_returns.loc[monthly_returns.index[-1]]
+            last_monthly_stock_returns = last_monthly_returns.transpose()
+            last_monthly_stock_returns.index.name = 'Ticker'
+            st.dataframe(last_monthly_stock_returns)
+
 
             st.header('Yearly Returns')
             yearly_returns = prices['Close'].resample('Y').ffill().pct_change()
-            st.line_chart((yearly_returns + 1).cumprod().dropna())
             st.dataframe(yearly_returns)
+            last_yearly_returns = yearly_returns.loc[yearly_returns.index[-1]]
+            last_yearly_stock_returns = last_yearly_returns.transpose()
+            last_yearly_stock_returns.index.name = 'Ticker'
+            st.dataframe(last_yearly_stock_returns)
+
 
     def handle_option_momentum(self):
         """Run momentum calculation for selected stocks"""
