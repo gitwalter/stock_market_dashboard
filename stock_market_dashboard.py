@@ -98,8 +98,11 @@ class StockMarketDashboard:
         self.selected_symbol_names = st.sidebar.multiselect(
             "Select Instruments", self.symbols.name)
 
-        self.selected_symbols = self.symbols.loc[self.symbols['name'].isin(
-            self.selected_symbol_names)]
+        if self.selected_symbol_names:
+            self.selected_symbols = self.symbols.loc[self.symbols['name'].isin(
+                self.selected_symbol_names)]
+        else:
+            self.selected_symbols = self.symbols
 
     def handle_option_backtest(self):
         """Execute backtest for selected instrument and strategy"""
