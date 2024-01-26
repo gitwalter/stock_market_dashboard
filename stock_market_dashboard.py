@@ -63,7 +63,7 @@ class StockMarketDashboard:
         self.selected_types = st.sidebar.multiselect(
             "Type", self.types, default=["Stocks"])
         self.selected_exchanges = st.sidebar.multiselect(
-            "Exchange", self.exchanges, default=["NASDAQ"])
+            "Exchange", self.exchanges, default=["Frankfurt"])
         self.selected_industries = st.sidebar.multiselect(
             "Industry", self.industries)
 
@@ -252,8 +252,8 @@ class StockMarketDashboard:
         """Calculate return per period for selected stocks"""
         self.get_symbols_from_multiselect()
         self.get_start_end()
-
-        if not self.selected_symbols.empty:
+        calculate_returns = st.sidebar.button('Calculate Returns')
+        if not self.selected_symbols.empty and calculate_returns:
             download = BatchPriceDownloader(self.selected_symbols.index.tolist(
             ), self.start_date, self.end_date, self.ONE_DAY)
             prices = download.get_yahoo_prices()
@@ -282,17 +282,17 @@ class StockMarketDashboard:
             last_weekly_stock_returns = last_weekly_returns.transpose()
             last_weekly_stock_returns.index.name = 'Ticker'
             st.dataframe(last_weekly_stock_returns)
+            if len(self.selected_symbols) < 11:
+                fig, ax = plt.subplots()
+                if len(weekly_returns.columns) >= 2:
+                    for index, row in self.selected_symbols.iterrows():
+                        (weekly_returns[index] + 1).cumprod().plot()
+                        ax.plot(label=index)
+                        ax.legend()
+                else:
+                    (weekly_returns + 1).cumprod().plot()
 
-            fig, ax = plt.subplots()
-            if len(weekly_returns.columns) >= 2:
-                for index, row in self.selected_symbols.iterrows():
-                    (weekly_returns[index] + 1).cumprod().plot()
-                    ax.plot(label=index)
-                    ax.legend()
-            else:
-                (weekly_returns + 1).cumprod().plot()
-
-            st.pyplot(fig)
+                st.pyplot(fig)
 
             st.header('Monthly Returns')
             monthly_returns = prices['Close'].resample(
@@ -311,6 +311,11 @@ class StockMarketDashboard:
             last_yearly_stock_returns = last_yearly_returns.transpose()
             last_yearly_stock_returns.index.name = 'Ticker'
             st.dataframe(last_yearly_stock_returns)
+
+            before_last_yearly_returns = yearly_returns.loc[yearly_returns.index[-2]]
+            before_last_yearly_stock_returns = before_last_yearly_returns.transpose()
+            before_last_yearly_stock_returns.index.name = 'Ticker'
+            st.dataframe(before_last_yearly_stock_returns)
 
 
     def handle_option_momentum(self):
