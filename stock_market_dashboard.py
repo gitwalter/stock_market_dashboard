@@ -254,9 +254,11 @@ class StockMarketDashboard:
         self.get_start_end()
         calculate_returns = st.sidebar.button('Calculate Returns')
         if not self.selected_symbols.empty and calculate_returns:
-            download = BatchPriceDownloader(self.selected_symbols.index.tolist(
+            prices = self.download_instrument_price(self.selected_symbols.index.tolist(
             ), self.start_date, self.end_date, self.ONE_DAY)
-            prices = download.get_yahoo_prices()
+            # download = BatchPriceDownloader(self.selected_symbols.index.tolist(
+            # ), self.start_date, self.end_date, self.ONE_DAY)
+            # prices = download.get_yahoo_prices()
 
             st.header('Daily Returns')
             daily_returns = prices['Close'].pct_change()
@@ -272,7 +274,10 @@ class StockMarketDashboard:
 
             # Rename the index to 'Ticker'
             daily_stock_returns.index.name = 'Ticker'
-                        
+            
+            daily_stock_returns = daily_stock_returns.to_frame().merge(self.selected_symbols[['name', 'industry']], left_index=True, right_index=True)
+
+
             st.dataframe(daily_stock_returns)
 
             st.header('Weekly Returns')
@@ -281,6 +286,8 @@ class StockMarketDashboard:
             last_weekly_returns = weekly_returns.loc[weekly_returns.index[-1]]
             last_weekly_stock_returns = last_weekly_returns.transpose()
             last_weekly_stock_returns.index.name = 'Ticker'
+            last_weekly_stock_returns = last_weekly_stock_returns.to_frame().merge(self.selected_symbols[['name', 'industry']], left_index=True, right_index=True)
+            
             st.dataframe(last_weekly_stock_returns)
             if len(self.selected_symbols) < 11:
                 fig, ax = plt.subplots()
@@ -301,6 +308,7 @@ class StockMarketDashboard:
             last_monthly_returns = monthly_returns.loc[monthly_returns.index[-1]]
             last_monthly_stock_returns = last_monthly_returns.transpose()
             last_monthly_stock_returns.index.name = 'Ticker'
+            last_monthly_stock_returns = last_monthly_stock_returns.to_frame().merge(self.selected_symbols[['name', 'industry']], left_index=True, right_index=True)
             st.dataframe(last_monthly_stock_returns)
 
 
@@ -310,11 +318,13 @@ class StockMarketDashboard:
             last_yearly_returns = yearly_returns.loc[yearly_returns.index[-1]]
             last_yearly_stock_returns = last_yearly_returns.transpose()
             last_yearly_stock_returns.index.name = 'Ticker'
+            last_yearly_stock_returns = last_yearly_stock_returns.to_frame().merge(self.selected_symbols[['name', 'industry']], left_index=True, right_index=True)
             st.dataframe(last_yearly_stock_returns)
 
             before_last_yearly_returns = yearly_returns.loc[yearly_returns.index[-2]]
             before_last_yearly_stock_returns = before_last_yearly_returns.transpose()
             before_last_yearly_stock_returns.index.name = 'Ticker'
+            before_last_yearly_stock_returns = before_last_yearly_stock_returns.to_frame().merge(self.selected_symbols[['name', 'industry']], left_index=True, right_index=True)
             st.dataframe(before_last_yearly_stock_returns)
 
 
