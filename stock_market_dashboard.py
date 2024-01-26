@@ -157,8 +157,6 @@ class StockMarketDashboard:
 
     def handle_option_watchlist(self):
         """Plot quant figure for instruments of csv file"""
-    
-        stocks = self.get_selected_stocks()
         self.get_chart_indicators()
         self.get_start_end()
 
