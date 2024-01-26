@@ -252,22 +252,22 @@ class StockMarketDashboard:
         # Iterate over rows -1, -2, and -3
         for row in [-1, -2, -3]:
             # Find the last date in the DataFrame
-            last_date = returns.index[row]
+            date = returns.index[row]
 
             # Select rows corresponding to the last date
-            last_date_returns = returns.loc[last_date]
+            returns_at_date = returns.loc[date]
 
             # Transpose the DataFrame to have ticker names as the index
-            daily_stock_returns = last_date_returns.transpose()
+            stock_returns_at_date = returns_at_date.transpose()
 
             # Rename the index to 'Ticker'
-            daily_stock_returns.index.name = 'Ticker'
+            stock_returns_at_date.index.name = 'Ticker'
 
             # Merge with additional information from 'selected_symbols'
-            daily_stock_returns = daily_stock_returns.to_frame().merge(self.selected_symbols[['name', 'industry']], left_index=True, right_index=True)
+            stock_returns_at_date = stock_returns_at_date.to_frame().merge(self.selected_symbols[['name', 'industry']], left_index=True, right_index=True)
 
             # Display the DataFrame for the current row
-            st.dataframe(daily_stock_returns)
+            st.dataframe(stock_returns_at_date)
 
 
 
@@ -284,8 +284,7 @@ class StockMarketDashboard:
             daily_returns = prices['Close'].pct_change()
 
             self.display_stock_returns(daily_returns)
-            
-                        
+                                
 
             st.header('Weekly Returns')
             weekly_returns = prices['Close'].resample('W').ffill().pct_change()
