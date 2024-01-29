@@ -247,6 +247,7 @@ class StockMarketDashboard:
             self.quant_figure_days()
 
     def display_stock_returns(self, returns):
+        """Display returns of last 3 periods"""
         # Iterate over rows -1, -2, and -3
         for row in [-1, -2, -3]:
             # Find the last date in the DataFrame
