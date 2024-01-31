@@ -3,6 +3,7 @@ from datetime import datetime
 import os
 
 import streamlit as st
+import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 
@@ -171,15 +172,6 @@ class StockMarketDashboard:
             for ticker in tickers.iterrows():
                 self.symbol = ticker[1]['Symbol']
                 self.symbol_name = ticker[1]['Name']
-                if show_minutes:
-                    self.quant_figure_minutes()
-                if show_days:
-                    self.quant_figure_days()
-
-        if st.sidebar.button('Display Charts') and uploaded_file is None:
-            for ticker in stocks:
-                self.symbol = ticker
-                self.symbol_name = ticker
                 if show_minutes:
                     self.quant_figure_minutes()
                 if show_days:
@@ -379,12 +371,59 @@ class StockMarketDashboard:
         """Display sector ETF charts"""
         self.get_chart_indicators()
         self.get_start_end()
-
-        for sector in self.sector_etf:
-            self.symbol = self.sector_etf[sector]
-            self.symbol_name = sector + ' ' + self.sector_etf[sector]
+       
+        collected_prices = pd.DataFrame()
+       
+        for sector, symbol in self.sector_etf.items():
+            self.symbol = symbol
+            self.symbol_name = sector + ' ' + symbol
             self.quant_figure_minutes()
             self.quant_figure_days()
+            df_ticker_period = self.download_instrument_price(
+            [self.symbol], self.start_date, self.end_date, self.ONE_DAY)
+            collected_prices[symbol] = df_ticker_period['Close']
+
+        day_returns = collected_prices.pct_change()            
+        self.create_sector_returns_bar_chart(day_returns)
+        
+        
+        weekly_returns = collected_prices.resample('W').ffill().pct_change()    
+        self.create_sector_returns_bar_chart(weekly_returns)
+        
+        
+        monthly_returns = collected_prices.resample('M').ffill().pct_change()
+        self.create_sector_returns_bar_chart(monthly_returns)
+        
+        yearly_returns = collected_prices.resample('Y').ffill().pct_change()            
+        self.create_sector_returns_bar_chart(yearly_returns)
+
+    def create_sector_returns_bar_chart(self, returns):
+        
+        for row in [-1, -2, -3]:
+            date = returns.index[row]        
+            returns_at_date = returns.loc[date]
+            df_returns = pd.DataFrame(returns_at_date)        
+            df_returns = df_returns.transpose()
+            # Extract the first row
+            first_row = df_returns.iloc[0]
+
+            # Plotting the bar chart using matplotlib
+            fig, ax = plt.subplots()
+            # Define a color map for bars
+            colors = plt.cm.viridis(np.linspace(0, 1, len(first_row)))
+
+            # Plot each bar with a different color
+            for i, (col, value) in enumerate(first_row.items()):
+                ax.bar(col, value, color=colors[i])                
+
+            # Set labels and title
+            ax.set_xlabel('Sectors')
+            ax.set_ylabel('Returns')
+            ax.set_title(f'Sector ETF Returns - {date}')
+
+            # Display the chart in Streamlit
+            st.pyplot(fig)
+
 
     def quant_figure_days(self):
         """Display quant figure for a period of days"""
