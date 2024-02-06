@@ -7,6 +7,7 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 
+
 from pandas.tseries.holiday import USFederalHolidayCalendar
 from pandas.tseries.offsets import CustomBusinessDay
 import pandas as pd
@@ -543,6 +544,15 @@ class StockMarketDashboard:
         self.symbol = None
         self.symbol_name = None
         self.option = None
+        self.symbols = None
+        self.selected_types = None
+        self.selected_exchanges = None
+        self.selected_industries = None
+        self.selected_symbols = None
+        self.selected_symbol_names = None        
+        self.start_date = None
+        self.end_date = None
+        
 
     def run(self):
         """Handle different options of app"""
