@@ -24,8 +24,10 @@ def validate_ticker_symbol(ticker: str) -> bool:
     if not ticker or not isinstance(ticker, str):
         return False
     
-    # Basic ticker pattern: 1-5 uppercase letters, numbers, and some special chars
-    pattern = r'^[A-Z0-9^=]{1,10}$'
+    # More permissive ticker pattern for international markets
+    # Allows: letters, numbers, dots, hyphens, equals, carets
+    # Examples: AAPL, ^GSPC, BTC-USD, 1U1.DE, TGT.DE
+    pattern = r'^[A-Za-z0-9^=.-]{1,15}$'
     return bool(re.match(pattern, ticker.strip()))
 
 

@@ -88,11 +88,11 @@ class DashboardConfig:
     
     # Technical indicators for charts
     quant_figure_indicators: List[str] = field(default_factory=lambda: [
-        'atr', 'bb', 'macd', 'rsi', 'vol'
+        'bb', 'rsi'
     ])
     
     quant_figure_methods: List[str] = field(default_factory=lambda: [
-        'add_atr', 'add_bollinger_bands', 'add_macd', 'add_rsi', 'add_volume'
+        'add_bollinger_bands', 'add_rsi'
     ])
     
     # App options
