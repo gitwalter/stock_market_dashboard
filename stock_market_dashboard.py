@@ -89,8 +89,8 @@ class StockMarketDashboard:
         """Download instrument price from yahoo with error handling"""
         try:
             downloader = BatchPriceDownloader(tickers_list, start_date, end_date, interval)
-        prices = downloader.get_yahoo_prices()
-        return prices
+            prices = downloader.get_yahoo_prices()
+            return prices
         except DataDownloadError as e:
             logger.log_error("price_download", str(e))
             st.error(f"Failed to download price data: {e}")
@@ -103,31 +103,31 @@ class StockMarketDashboard:
     def filter_symbols(self):
         """Filter symbols by type, exchange and industry with validation"""
         try:
-        symbols = self.load_etoro_file()
+            symbols = self.load_etoro_file()
             
             if symbols.empty:
                 st.warning("No symbols available")
                 return pd.DataFrame()
 
-        self.selected_types = st.sidebar.multiselect(
-            "Type", self.types, default=["Stocks"])
-        self.selected_exchanges = st.sidebar.multiselect(
-            "Exchange", self.exchanges, default=["Frankfurt"])
-        self.selected_industries = st.sidebar.multiselect(
-            "Industry", self.industries)
+            self.selected_types = st.sidebar.multiselect(
+                "Type", self.types, default=["Stocks"])
+            self.selected_exchanges = st.sidebar.multiselect(
+                "Exchange", self.exchanges, default=["Frankfurt"])
+            self.selected_industries = st.sidebar.multiselect(
+                "Industry", self.industries)
 
             # Apply filters
-        if len(self.selected_exchanges) != 0:
+            if len(self.selected_exchanges) != 0:
                 symbols = symbols[symbols["exchange"].isin(self.selected_exchanges)]
 
-        if len(self.selected_types) != 0:
+            if len(self.selected_types) != 0:
                 symbols = symbols[symbols["instrument type"].isin(self.selected_types)]
 
-        if len(self.selected_industries) != 0:
+            if len(self.selected_industries) != 0:
                 symbols = symbols[symbols["industry"].isin(self.selected_industries)]
 
-        symbols = symbols.sort_values(by='name', ascending=True)
-        return symbols
+            symbols = symbols.sort_values(by='name', ascending=True)
+            return symbols
             
         except Exception as e:
             logger.log_error("symbol_filter", f"Failed to filter symbols: {e}")
@@ -137,13 +137,13 @@ class StockMarketDashboard:
     def get_symbol(self):
         """Get selected symbol with validation"""
         try:
-        self.symbols = self.filter_symbols()
+            self.symbols = self.filter_symbols()
             
             if self.symbols.empty:
                 st.warning("No symbols available")
                 return
 
-        self.symbol_name = st.selectbox("Select Instrument", self.symbols.name)
+            self.symbol_name = st.selectbox("Select Instrument", self.symbols.name)
             self.symbol = self.symbols.loc[self.symbols['name'] == self.symbol_name].index[0]
             
             # Validate symbol
@@ -158,23 +158,23 @@ class StockMarketDashboard:
     def get_symbols_from_multiselect(self):
         """Get symbols from multiselect with validation"""
         try:
-        self.symbols = self.filter_symbols()
+            self.symbols = self.filter_symbols()
             
             if self.symbols.empty:
                 st.warning("No symbols available")
                 return
 
-        self.selected_symbol_names = st.sidebar.multiselect(
-            "Select Instruments", self.symbols.name)
+            self.selected_symbol_names = st.sidebar.multiselect(
+                "Select Instruments", self.symbols.name)
 
-        if self.selected_symbol_names:
+            if self.selected_symbol_names:
                 # Set selected symbols filtered by name
                 self.selected_symbols = self.symbols.loc[
                     self.symbols['name'].isin(self.selected_symbol_names)
                 ]
-        else:
+            else:
                 # No name selected, take symbols filtered by type, exchange, industry
-            self.selected_symbols = self.symbols
+                self.selected_symbols = self.symbols
 
         except Exception as e:
             logger.log_error("multiselect_symbols", f"Failed to get symbols: {e}")
@@ -184,20 +184,20 @@ class StockMarketDashboard:
     def handle_option_backtest(self):
         """Execute backtest for selected instrument and strategy with error handling"""
         try:
-        self.get_symbol()
+            self.get_symbol()
             
             if not hasattr(self, 'symbol') or not self.symbol:
                 return
                 
-        strategy_name = st.selectbox('Strategy', self.strategies)
-        execute = st.button(label="Execute")
-        self.get_start_end()
+            strategy_name = st.selectbox('Strategy', self.strategies)
+            execute = st.button(label="Execute")
+            self.get_start_end()
             
-        if execute:
+            if execute:
                 with st.spinner("Executing backtest..."):
                     cerebro = backtrader.Cerebro()
                     
-            # Create a data feed
+                    # Create a data feed
                     data = backtrader.feeds.PandasData(
                         dataname=yf.download(
                             self.symbol, 
@@ -207,7 +207,7 @@ class StockMarketDashboard:
                         )
                     )
                     
-            if data._dataname.empty:
+                    if data._dataname.empty:
                         st.write('No price data for ' + self.symbol)
                         return
                     
@@ -215,17 +215,17 @@ class StockMarketDashboard:
                     
                     # Dynamic create instance of strategy class
                     try:
-                strategy = globals()[strategy_name]
+                        strategy = globals()[strategy_name]
                         cerebro.addstrategy(strategy)
                     except KeyError:
                         st.error(f"Strategy {strategy_name} not found")
                         return
 
-                cerebro.addsizer(backtrader.sizers.SizerFix, stake=100)
+                    cerebro.addsizer(backtrader.sizers.SizerFix, stake=100)
                     cerebro.run()
                     
-                matplotlib.use('Agg')
-                st.pyplot(cerebro.plot(iplot=True)[0][0])
+                    matplotlib.use('Agg')
+                    st.pyplot(cerebro.plot(iplot=True)[0][0])
                     
         except Exception as e:
             logger.log_error("backtest", f"Backtest failed: {e}")
@@ -234,9 +234,9 @@ class StockMarketDashboard:
     def get_start_end(self):
         """Get start and end date with validation"""
         try:
-        default_start_date, default_end_date = self.get_default_start_end()
+            default_start_date, default_end_date = self.get_default_start_end()
             self.start_date = st.sidebar.date_input('Start date', default_start_date)
-        self.end_date = st.sidebar.date_input('End date', default_end_date)
+            self.end_date = st.sidebar.date_input('End date', default_end_date)
             
             # Validate date range
             if self.start_date >= self.end_date:
@@ -257,15 +257,15 @@ class StockMarketDashboard:
     def handle_option_overview(self):
         """Display overview with error handling"""
         try:
-        self.get_chart_indicators()
-        self.get_start_end()
+            self.get_chart_indicators()
+            self.get_start_end()
 
-        for ticker in self.overview_tickers:
+            for ticker in self.overview_tickers:
                 try:
-            self.symbol = ticker
-            self.symbol_name = ticker
-            self.quant_figure_minutes()
-            self.quant_figure_days()
+                    self.symbol = ticker
+                    self.symbol_name = ticker
+                    self.quant_figure_minutes()
+                    self.quant_figure_days()
                 except Exception as e:
                     logger.log_error("overview_ticker", f"Failed to process {ticker}: {e}")
                     st.warning(f"Failed to process {ticker}")
@@ -278,30 +278,30 @@ class StockMarketDashboard:
     def handle_option_watchlist(self):
         """Plot quant figure for instruments of csv file with error handling"""
         try:
-        self.get_chart_indicators()
-        self.get_start_end()
+            self.get_chart_indicators()
+            self.get_start_end()
 
-        show_minutes = st.sidebar.checkbox('Show Minutes')
-        show_days = st.sidebar.checkbox('Show Days')
+            show_minutes = st.sidebar.checkbox('Show Minutes')
+            show_days = st.sidebar.checkbox('Show Days')
 
-        uploaded_file = st.file_uploader(
-                "Choose a csv-file with columns 'Symbol' and 'Name' for stock symbols and names"
-            )
-            
-        if uploaded_file is not None:
+            uploaded_file = st.file_uploader(
+                    "Choose a csv-file with columns 'Symbol' and 'Name' for stock symbols and names"
+                )
+                
+            if uploaded_file is not None:
                 try:
-            tickers = pd.read_csv(uploaded_file)
-            st.write(tickers)
+                    tickers = pd.read_csv(uploaded_file)
+                    st.write(tickers)
                     
-            for ticker in tickers.iterrows():
+                    for ticker in tickers.iterrows():
                         try:
-                self.symbol = ticker[1]['Symbol']
-                self.symbol_name = ticker[1]['Name']
+                            self.symbol = ticker[1]['Symbol']
+                            self.symbol_name = ticker[1]['Name']
                             
-                if show_minutes:
-                    self.quant_figure_minutes()
-                if show_days:
-                    self.quant_figure_days()
+                            if show_minutes:
+                                self.quant_figure_minutes()
+                            if show_days:
+                                self.quant_figure_days()
                                 
                         except Exception as e:
                             logger.log_error("watchlist_ticker", f"Failed to process ticker: {e}")
@@ -319,11 +319,11 @@ class StockMarketDashboard:
         """Plot quant figure of instrument with error handling"""
         try:
             # Nothing to plot
-        if prices.empty:
+            if prices.empty:
                 st.warning(f"No data available for {name}")
-            return
+                return
 
-        st.write(title)
+            st.write(title)
             
             # Handle MultiIndex columns from yfinance
             if isinstance(prices.columns, pd.MultiIndex):
@@ -339,7 +339,7 @@ class StockMarketDashboard:
                     return
             else:
                 # Original behavior for single-level columns
-        qf = cf.QuantFig(prices, legend='bottom', name=name, title=title)
+                qf = cf.QuantFig(prices, legend='bottom', name=name, title=title)
 
             # Add indicators based on configuration
             for indicator in config.quant_figure_indicators:
@@ -400,13 +400,13 @@ class StockMarketDashboard:
     def handle_option_sectors(self):
         """Handle sector analysis with error handling"""
         try:
-        self.get_start_end()
+            self.get_start_end()
 
             for sector, etf in self.sector_etf.items():
                 try:
                     self.symbol = etf
                     self.symbol_name = sector
-            self.quant_figure_days()
+                    self.quant_figure_days()
                 except Exception as e:
                     logger.log_error("sector_analysis", f"Failed to process {sector}: {e}")
                     st.warning(f"Failed to process {sector}")
@@ -419,7 +419,7 @@ class StockMarketDashboard:
         """Handle momentum analysis with error handling"""
         try:
             self.get_symbols_from_multiselect()
-        self.get_start_end()
+            self.get_start_end()
 
             if hasattr(self, 'selected_symbols') and not self.selected_symbols.empty:
                 symbols = self.selected_symbols.index.tolist()
@@ -442,7 +442,7 @@ class StockMarketDashboard:
         """Handle returns analysis with error handling"""
         try:
             self.get_symbols_from_multiselect()
-        self.get_start_end()
+            self.get_start_end()
        
             if hasattr(self, 'selected_symbols') and not self.selected_symbols.empty:
                 symbols = self.selected_symbols.index.tolist()
@@ -456,8 +456,8 @@ class StockMarketDashboard:
                     
                     # Plot returns
                     st.line_chart(returns)
-        else:
-                    st.warning("No price data available for returns analysis")
+            else:
+                st.warning("No price data available for returns analysis")
         else:
                 st.warning("Please select symbols for returns analysis")
                 
@@ -479,7 +479,7 @@ class StockMarketDashboard:
             
             # Route to appropriate handler
             if option == "Overview":
-            self.handle_option_overview()
+                self.handle_option_overview()
             elif option == "Sectors":
                 self.handle_option_sectors()
             elif option == "Chart":
@@ -488,11 +488,11 @@ class StockMarketDashboard:
                     self.get_start_end()
                     self.quant_figure_days()
             elif option == "Watchlist":
-            self.handle_option_watchlist()
+                self.handle_option_watchlist()
             elif option == "Momentum":
                 self.handle_option_momentum()
             elif option == "Returns":
-            self.handle_option_returns()
+                self.handle_option_returns()
             elif option == "Backtest":
                 self.handle_option_backtest()
             else:
