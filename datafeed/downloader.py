@@ -201,61 +201,99 @@ class RobustBatchPriceDownloader:
                 time.sleep(wait_time)
     
     def _download_prices(self) -> pd.DataFrame:
-        """Internal method to download prices"""
-        for t in range(1, self.loop_size):
-            m = (t - 1) * self.batch_size
-            n = t * self.batch_size
-            batch_list = self.ticker_list[m:n]
+        """Internal method to download prices with fallback for intraday data"""
+        from datetime import timedelta
+        
+        # Define fallback date ranges for intraday data
+        fallback_ranges = []
+        if self.interval in ['1m', '2m', '5m', '15m', '30m', '60m', '90m']:
+            # For intraday intervals, try 1-2 days before if current range fails
+            current_start = self.start
+            current_end = self.end
             
-            if len(batch_list) == 0:
-                break
+            # Try 1 day before
+            fallback_ranges.append((
+                current_start - timedelta(days=1),
+                current_end - timedelta(days=1),
+                "1 day before"
+            ))
             
-            logger.log_data_download(batch_list, True, 0)
-            
-            # Use rate limiter for Yahoo Finance calls
-            batch_download = yahoo_finance_limiter.call(
-                yf.download,
-                tickers=batch_list,
-                start=self.start,
-                end=self.end,
-                interval=self.interval,
-                group_by='column',
-                auto_adjust=True,
-                prepost=True,
-                threads=True,
-                proxy=None
-            )[self.fields]
-            
-            # Handle column naming
-            if len(batch_list) > 1:
-                batch_download.columns = batch_download.columns.rename("prices", level=0)
-                batch_download.columns = batch_download.columns.rename("symbol", level=1)
-            
-            # Update collected prices
-            if self.collected_prices.empty:
-                if len(batch_list) > 1:
-                    self.collected_prices = pd.concat([self.collected_prices, batch_download], ignore_index=False)
-                else:
-                    # Handle single ticker case
-                    if isinstance(batch_download.columns, pd.MultiIndex):
-                        self.collected_prices = batch_download
+            # Try 2 days before
+            fallback_ranges.append((
+                current_start - timedelta(days=2),
+                current_end - timedelta(days=2),
+                "2 days before"
+            ))
+        
+        # Try original date range first
+        date_ranges = [(self.start, self.end, "original")] + fallback_ranges
+        
+        for start_date, end_date, range_description in date_ranges:
+            try:
+                logger.log_data_download(self.ticker_list, True, 0, f"Trying {range_description}")
+                
+                for t in range(1, self.loop_size):
+                    m = (t - 1) * self.batch_size
+                    n = t * self.batch_size
+                    batch_list = self.ticker_list[m:n]
+                    
+                    if len(batch_list) == 0:
+                        break
+                    
+                    logger.log_data_download(batch_list, True, 0)
+                    
+                    # Use rate limiter for Yahoo Finance calls
+                    batch_download = yahoo_finance_limiter.call(
+                        yf.download,
+                        tickers=batch_list,
+                        start=start_date,
+                        end=end_date,
+                        interval=self.interval,
+                        group_by='column',
+                        auto_adjust=True,
+                        prepost=True,
+                        threads=True,
+                        proxy=None
+                    )[self.fields]
+                    
+                    # Handle column naming
+                    if len(batch_list) > 1:
+                        batch_download.columns = batch_download.columns.rename("prices", level=0)
+                        batch_download.columns = batch_download.columns.rename("symbol", level=1)
+                    
+                    # Update collected prices
+                    if self.collected_prices.empty:
+                        if len(batch_list) > 1:
+                            self.collected_prices = pd.concat([self.collected_prices, batch_download], ignore_index=False)
+                        else:
+                            # Handle single ticker case
+                            if isinstance(batch_download.columns, pd.MultiIndex):
+                                self.collected_prices = batch_download
+                            else:
+                                # Create proper MultiIndex for single ticker
+                                single_ticker = batch_list[0]
+                                multi_cols = pd.MultiIndex.from_product([self.fields, [single_ticker]], names=["prices", "symbol"])
+                                self.collected_prices = pd.DataFrame(
+                                    batch_download.values,
+                                    index=batch_download.index,
+                                    columns=multi_cols
+                                )
                     else:
-                        # Create proper MultiIndex for single ticker
-                        single_ticker = batch_list[0]
-                        multi_cols = pd.MultiIndex.from_product([self.fields, [single_ticker]], names=["prices", "symbol"])
-                        self.collected_prices = pd.DataFrame(
-                            batch_download.values,
-                            index=batch_download.index,
-                            columns=multi_cols
-                        )
-            else:
-                self.collected_prices.update(batch_download)
+                        self.collected_prices.update(batch_download)
+                
+                # If we get here, the download was successful
+                if not self.collected_prices.empty:
+                    logger.log_data_download(self.ticker_list, True, 0, f"Success with {range_description}")
+                    return self.collected_prices
+                    
+            except Exception as e:
+                logger.log_error("download_fallback", f"Failed with {range_description}: {e}")
+                # Reset collected prices for next attempt
+                self.collected_prices = pd.DataFrame(columns=self.collected_prices.columns, index=pd.to_datetime([]))
+                continue
         
-        # Validate final result
-        if self.collected_prices.empty:
-            raise DataDownloadError("No data downloaded for any ticker")
-        
-        return self.collected_prices
+        # If all attempts failed
+        raise DataDownloadError("No data downloaded for any ticker after trying all fallback date ranges")
 
 
 # Backward compatibility

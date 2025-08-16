@@ -456,9 +456,9 @@ class StockMarketDashboard:
                     
                     # Plot returns
                     st.line_chart(returns)
+                else:
+                    st.warning("No price data available for returns analysis")
             else:
-                st.warning("No price data available for returns analysis")
-        else:
                 st.warning("Please select symbols for returns analysis")
                 
         except Exception as e:
