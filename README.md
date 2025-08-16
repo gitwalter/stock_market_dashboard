@@ -20,9 +20,6 @@ stock_market_dashboard/
 ├── datafeed/                    # Data fetching modules
 │   ├── downloader.py           # Yahoo Finance data downloader
 │   └── etoro.py                # eToro data integration
-├── config/                      # Configuration files
-│   ├── __init__.py
-│   └── secrets.py              # API keys (template)
 ├── analyzer/                    # Data analysis modules
 └── strategy/                    # Trading strategy modules
 ```
@@ -48,9 +45,6 @@ stock_market_dashboard/
    conda activate stock_dashboard
    pip install -r requirements.txt
    ```
-
-4. **Configure API keys** (optional):
-   - Edit `config/secrets.py` to add your API keys if needed
 
 ## Usage
 
@@ -126,7 +120,6 @@ If you encounter environment-related errors:
 The project is structured for easy development and testing:
 
 - Core data fetching is isolated in `datafeed/`
-- Configuration is centralized in `config/`
 - Main application logic is in `stock_market_dashboard.py`
 
 ## License
