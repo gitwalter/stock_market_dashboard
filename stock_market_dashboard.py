@@ -202,37 +202,69 @@ class StockMarketDashboard:
             
             if execute:
                 with st.spinner("Executing backtest..."):
-                    cerebro = backtrader.Cerebro()
-                    
-                    # Create a data feed
-                    data = backtrader.feeds.PandasData(
-                        dataname=yf.download(
-                            self.symbol, 
-                            self.start_date, 
-                            self.end_date, 
-                            auto_adjust=True
-                        )
-                    )
-                    
-                    if data._dataname.empty:
-                        st.write('No price data for ' + self.symbol)
-                        return
-                    
-                    cerebro.adddata(data)
-                    
-                    # Dynamic create instance of strategy class
                     try:
-                        strategy = globals()[strategy_name]
-                        cerebro.addstrategy(strategy)
-                    except KeyError:
-                        st.error(f"Strategy {strategy_name} not found")
-                        return
+                        cerebro = backtrader.Cerebro()
+                        
+                        # Download data using our robust downloader
+                        prices = self.download_instrument_price(
+                            [self.symbol], self.start_date, self.end_date, '1d'
+                        )
+                        
+                        if prices.empty:
+                            st.error(f'No price data for {self.symbol}')
+                            return
+                        
+                        # Handle MultiIndex columns from yfinance
+                        if isinstance(prices.columns, pd.MultiIndex):
+                            # Select columns for this specific ticker
+                            if self.symbol in prices.columns.get_level_values(1):
+                                ticker_prices = prices.loc[:, (slice(None), self.symbol)]
+                                # Flatten the MultiIndex columns
+                                ticker_prices.columns = ticker_prices.columns.get_level_values(0)
+                            else:
+                                st.error(f'No data found for {self.symbol}')
+                                return
+                        else:
+                            ticker_prices = prices
+                        
+                        # Ensure we have the required columns for backtrader
+                        required_columns = ['Open', 'High', 'Low', 'Close', 'Volume']
+                        for col in required_columns:
+                            if col not in ticker_prices.columns:
+                                st.error(f'Missing required column: {col}')
+                                return
+                        
+                        # Create a data feed
+                        data = backtrader.feeds.PandasData(
+                            dataname=ticker_prices,
+                            datetime=None,  # Use index as datetime
+                            open='Open',
+                            high='High',
+                            low='Low',
+                            close='Close',
+                            volume='Volume',
+                            openinterest=-1  # Not used
+                        )
+                        
+                        cerebro.adddata(data)
+                        
+                        # Dynamic create instance of strategy class
+                        try:
+                            strategy = globals()[strategy_name]
+                            cerebro.addstrategy(strategy)
+                        except KeyError:
+                            st.error(f"Strategy {strategy_name} not found")
+                            return
 
-                    cerebro.addsizer(backtrader.sizers.SizerFix, stake=100)
-                    cerebro.run()
-                    
-                    matplotlib.use('Agg')
-                    st.pyplot(cerebro.plot(iplot=True)[0][0])
+                        cerebro.addsizer(backtrader.sizers.SizerFix, stake=100)
+                        cerebro.run()
+                        
+                        matplotlib.use('Agg')
+                        st.pyplot(cerebro.plot(iplot=True)[0][0])
+                        
+                    except Exception as e:
+                        st.error(f"Backtest execution failed: {e}")
+                        logger.log_error("backtest_execution", f"Detailed error: {e}")
                     
         except Exception as e:
             logger.log_error("backtest", f"Backtest failed: {e}")
