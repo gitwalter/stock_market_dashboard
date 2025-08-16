@@ -180,7 +180,6 @@ downloads/
 cache/
 logs/
 
-
 # API keys and secrets
 .env
 .env.local
@@ -210,3 +209,15 @@ Thumbs.db
 
 # Virtual environment
 stock_dashboard_env/
+
+# Review and documentation files
+*_REVIEW.md
+*_review.md
+REVIEW.md
+review.md
+INTERNAL_REVIEW.md
+internal_review.md
+*_SUMMARY.md
+*_summary.md
+SUMMARY.md
+summary.md

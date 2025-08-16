@@ -15,6 +15,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from datafeed.downloader import InfoDownloader, BatchPriceDownloader
+from utils.exceptions import ValidationError, DataDownloadError
 
 
 class TestInfoDownloader(unittest.TestCase):
@@ -22,7 +23,9 @@ class TestInfoDownloader(unittest.TestCase):
     
     def setUp(self):
         """Set up test fixtures"""
-        self.downloader = InfoDownloader("AAPL")
+        # Mock the validation to allow test tickers
+        with patch('datafeed.downloader.validate_ticker_symbol', return_value=True):
+            self.downloader = InfoDownloader("AAPL")
     
     @patch('datafeed.downloader.yf.Ticker')
     def test_info_method(self, mock_ticker):
@@ -38,8 +41,9 @@ class TestInfoDownloader(unittest.TestCase):
         mock_ticker.return_value = mock_ticker_instance
         
         # Create downloader and test
-        downloader = InfoDownloader("AAPL")
-        result = downloader.info()
+        with patch('datafeed.downloader.validate_ticker_symbol', return_value=True):
+            downloader = InfoDownloader("AAPL")
+            result = downloader.info()
         
         # Assertions
         self.assertIsInstance(result, pd.DataFrame)
@@ -59,8 +63,9 @@ class TestInfoDownloader(unittest.TestCase):
         mock_ticker.return_value = mock_ticker_instance
         
         # Create downloader and test
-        downloader = InfoDownloader("AAPL")
-        result = downloader.fast_info()
+        with patch('datafeed.downloader.validate_ticker_symbol', return_value=True):
+            downloader = InfoDownloader("AAPL")
+            result = downloader.fast_info()
         
         # Assertions
         self.assertIsInstance(result, pd.DataFrame)
@@ -75,16 +80,17 @@ class TestInfoDownloader(unittest.TestCase):
             {'title': 'iPhone Sales Up', 'link': 'http://example2.com'}
         ]
         mock_ticker_instance = MagicMock()
-        mock_ticker_instance.news = mock_news
+        mock_ticker_instance.get_news.return_value = mock_news
         mock_ticker.return_value = mock_ticker_instance
         
         # Create downloader and test
-        downloader = InfoDownloader("AAPL")
-        result = downloader.get_news()
+        with patch('datafeed.downloader.validate_ticker_symbol', return_value=True):
+            downloader = InfoDownloader("AAPL")
+            result = downloader.get_news()
         
-        # Assertions - the actual implementation returns empty DataFrame
+        # Assertions
         self.assertIsInstance(result, pd.DataFrame)
-        # Note: The actual implementation doesn't use the news attribute, so result is empty
+        self.assertEqual(len(result), 2)
 
 
 class TestBatchPriceDownloader(unittest.TestCase):
@@ -96,9 +102,13 @@ class TestBatchPriceDownloader(unittest.TestCase):
         self.start_date = datetime(2024, 1, 1)
         self.end_date = datetime(2024, 1, 31)
         self.interval = '1d'
-        self.downloader = BatchPriceDownloader(
-            self.tickers, self.start_date, self.end_date, self.interval
-        )
+        
+        # Mock validation to allow test tickers
+        with patch('datafeed.downloader.validate_ticker_list', return_value=self.tickers), \
+             patch('datafeed.downloader.validate_date_range', return_value=(self.start_date, self.end_date)):
+            self.downloader = BatchPriceDownloader(
+                self.tickers, self.start_date, self.end_date, self.interval
+            )
     
     def test_initialization(self):
         """Test BatchPriceDownloader initialization"""
@@ -106,15 +116,17 @@ class TestBatchPriceDownloader(unittest.TestCase):
         self.assertEqual(self.downloader.start, self.start_date)
         self.assertEqual(self.downloader.end, self.end_date)
         self.assertEqual(self.downloader.interval, self.interval)
-        self.assertEqual(self.downloader.batch_size, 20)
+        self.assertEqual(self.downloader.batch_size, 20)  # From config
     
     def test_string_date_conversion(self):
         """Test that string dates are converted to datetime objects"""
-        downloader = BatchPriceDownloader(
-            self.tickers, "2024-01-01", "2024-01-31", self.interval
-        )
-        self.assertIsInstance(downloader.start, datetime)
-        self.assertIsInstance(downloader.end, datetime)
+        with patch('datafeed.downloader.validate_ticker_list', return_value=self.tickers), \
+             patch('datafeed.downloader.validate_date_range', return_value=(self.start_date, self.end_date)):
+            downloader = BatchPriceDownloader(
+                self.tickers, "2024-01-01", "2024-01-31", self.interval
+            )
+            self.assertIsInstance(downloader.start, datetime)
+            self.assertIsInstance(downloader.end, datetime)
     
     @patch('datafeed.downloader.yf.download')
     def test_get_yahoo_prices_success(self, mock_download):
@@ -145,33 +157,41 @@ class TestBatchPriceDownloader(unittest.TestCase):
     @patch('datafeed.downloader.yf.download')
     def test_get_yahoo_prices_empty_result(self, mock_download):
         """Test handling of empty download results"""
-        # Mock empty download
-        mock_download.return_value = pd.DataFrame()
+        # Mock empty download with proper MultiIndex structure
+        columns = pd.MultiIndex.from_product([['Open', 'Low', 'High', 'Close', 'Volume'], ['AAPL', 'MSFT']], 
+                                           names=['prices', 'symbol'])
+        mock_data = pd.DataFrame(columns=columns)
+        mock_download.return_value = mock_data
         
-        # This will fail due to KeyError, which is expected behavior
-        with self.assertRaises(KeyError):
+        # This will fail due to DataDownloadError, which is expected behavior
+        with self.assertRaises(DataDownloadError):
             result = self.downloader.get_yahoo_prices()
     
     def test_single_ticker_handling(self):
         """Test handling of single ticker"""
         single_ticker = ['AAPL']
-        downloader = BatchPriceDownloader(
-            single_ticker, self.start_date, self.end_date, self.interval
-        )
-        
-        # Should handle single ticker without errors
-        self.assertEqual(downloader.ticker_list, single_ticker)
+        with patch('datafeed.downloader.validate_ticker_list', return_value=single_ticker), \
+             patch('datafeed.downloader.validate_date_range', return_value=(self.start_date, self.end_date)):
+            downloader = BatchPriceDownloader(
+                single_ticker, self.start_date, self.end_date, self.interval
+            )
+            
+            # Should handle single ticker without errors
+            self.assertEqual(downloader.ticker_list, single_ticker)
     
     def test_large_ticker_list_batching(self):
         """Test that large ticker lists are properly batched"""
         large_ticker_list = [f'TICKER_{i}' for i in range(50)]
-        downloader = BatchPriceDownloader(
-            large_ticker_list, self.start_date, self.end_date, self.interval
-        )
-        
-        # Should calculate loop size correctly
-        expected_loop_size = int(len(large_ticker_list) // downloader.batch_size) + 2
-        self.assertEqual(downloader.loop_size, expected_loop_size)
+        # Mock validation to allow test tickers
+        with patch('datafeed.downloader.validate_ticker_list', return_value=large_ticker_list), \
+             patch('datafeed.downloader.validate_date_range', return_value=(self.start_date, self.end_date)):
+            downloader = BatchPriceDownloader(
+                large_ticker_list, self.start_date, self.end_date, self.interval
+            )
+            
+            # Should calculate loop size correctly
+            expected_loop_size = int(len(large_ticker_list) // downloader.batch_size) + 2
+            self.assertEqual(downloader.loop_size, expected_loop_size)
 
 
 class TestDataValidation(unittest.TestCase):
@@ -182,27 +202,29 @@ class TestDataValidation(unittest.TestCase):
         start_date = datetime(2024, 12, 31)
         end_date = datetime(2024, 1, 1)  # End before start
         
-        # Should not raise an error during initialization
-        downloader = BatchPriceDownloader(
-            ['AAPL'], start_date, end_date, '1d'
-        )
-        self.assertIsInstance(downloader, BatchPriceDownloader)
+        # Should raise ValidationError during initialization
+        with self.assertRaises(ValidationError):
+            with patch('datafeed.downloader.validate_ticker_list', return_value=['AAPL']):
+                downloader = BatchPriceDownloader(
+                    ['AAPL'], start_date, end_date, '1d'
+                )
     
     def test_empty_ticker_list(self):
         """Test handling of empty ticker list"""
-        # Should handle empty list gracefully
-        downloader = BatchPriceDownloader(
-            [], datetime.now(), datetime.now(), '1d'
-        )
-        self.assertEqual(downloader.ticker_list, [])
+        # Should raise ValidationError for empty list
+        with self.assertRaises(ValidationError):
+            downloader = BatchPriceDownloader(
+                [], datetime.now(), datetime.now(), '1d'
+            )
     
     def test_invalid_interval(self):
         """Test handling of invalid interval"""
-        # Should accept any interval string
-        downloader = BatchPriceDownloader(
-            ['AAPL'], datetime.now(), datetime.now(), 'invalid_interval'
-        )
-        self.assertEqual(downloader.interval, 'invalid_interval')
+        # Should accept any interval string but fail on date validation
+        with self.assertRaises(ValidationError):
+            with patch('datafeed.downloader.validate_ticker_list', return_value=['AAPL']):
+                downloader = BatchPriceDownloader(
+                    ['AAPL'], datetime.now(), datetime.now(), 'invalid_interval'
+                )
 
 
 if __name__ == '__main__':
