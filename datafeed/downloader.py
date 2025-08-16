@@ -8,6 +8,8 @@ import pandas as pd
 import yfinance as yf
 import numpy as np
 import time
+import os
+import requests
 from typing import List, Optional, Union
 from datetime import datetime
 
@@ -17,6 +19,142 @@ from utils.exceptions import DataDownloadError, ValidationError, RateLimitError
 from utils.validation import validate_ticker_list, validate_date_range, validate_dataframe, validate_ticker_symbol
 from utils.logging import logger, monitor_performance
 from utils.rate_limiter import yahoo_finance_limiter
+
+
+def is_streamlit_cloud():
+    """Check if running on Streamlit Cloud"""
+    return os.environ.get('STREAMLIT_SERVER_PORT') is not None
+
+
+class CloudCompatibleDownloader:
+    """Downloader optimized for Streamlit Cloud deployment"""
+    
+    @staticmethod
+    def download_with_fallbacks(tickers, start_date, end_date, interval, fields):
+        """
+        Download data with multiple fallback strategies for cloud deployment
+        
+        Args:
+            tickers: List of ticker symbols
+            start_date: Start date
+            end_date: End date
+            interval: Data interval
+            fields: Fields to download
+            
+        Returns:
+            DataFrame with price data
+        """
+        # Strategy 1: Standard download
+        try:
+            logger.log_data_download(tickers, True, 0, "Strategy 1: Standard download")
+            result = yf.download(
+                tickers=tickers,
+                start=start_date,
+                end=end_date,
+                interval=interval,
+                group_by='column',
+                auto_adjust=True,
+                prepost=True,
+                threads=True,
+                proxy=None
+            )
+            if not result.empty:
+                return result[fields]
+        except Exception as e:
+            logger.log_error("download_strategy", f"Strategy 1 failed: {e}")
+        
+        # Strategy 2: Disable threading (often helps on cloud)
+        try:
+            logger.log_data_download(tickers, True, 0, "Strategy 2: No threading")
+            result = yf.download(
+                tickers=tickers,
+                start=start_date,
+                end=end_date,
+                interval=interval,
+                group_by='column',
+                auto_adjust=True,
+                prepost=False,
+                threads=False,
+                proxy=None
+            )
+            if not result.empty:
+                return result[fields]
+        except Exception as e:
+            logger.log_error("download_strategy", f"Strategy 2 failed: {e}")
+        
+        # Strategy 3: Single ticker downloads (more reliable on cloud)
+        if len(tickers) > 1:
+            try:
+                logger.log_data_download(tickers, True, 0, "Strategy 3: Single ticker downloads")
+                results = []
+                for ticker in tickers:
+                    try:
+                        ticker_data = yf.download(
+                            tickers=ticker,
+                            start=start_date,
+                            end=end_date,
+                            interval=interval,
+                            auto_adjust=True,
+                            prepost=False,
+                            threads=False,
+                            proxy=None
+                        )
+                        if not ticker_data.empty:
+                            results.append(ticker_data)
+                        time.sleep(0.1)  # Small delay between requests
+                    except Exception as e:
+                        logger.log_error("single_ticker", f"Failed to download {ticker}: {e}")
+                        continue
+                
+                if results:
+                    # Combine results
+                    combined = pd.concat(results, axis=1, keys=tickers)
+                    combined.columns = combined.columns.rename("prices", level=0)
+                    combined.columns = combined.columns.rename("symbol", level=1)
+                    return combined[fields]
+            except Exception as e:
+                logger.log_error("download_strategy", f"Strategy 3 failed: {e}")
+        
+        # Strategy 4: Use different interval if intraday fails
+        if interval in ['1m', '2m', '5m', '15m', '30m']:
+            try:
+                logger.log_data_download(tickers, True, 0, f"Strategy 4: Fallback to 1h interval")
+                result = yf.download(
+                    tickers=tickers,
+                    start=start_date,
+                    end=end_date,
+                    interval='1h',
+                    group_by='column',
+                    auto_adjust=True,
+                    prepost=False,
+                    threads=False,
+                    proxy=None
+                )
+                if not result.empty:
+                    return result[fields]
+            except Exception as e:
+                logger.log_error("download_strategy", f"Strategy 4 failed: {e}")
+        
+        # Strategy 5: Use daily data as last resort
+        try:
+            logger.log_data_download(tickers, True, 0, "Strategy 5: Daily data fallback")
+            result = yf.download(
+                tickers=tickers,
+                start=start_date,
+                end=end_date,
+                interval='1d',
+                group_by='column',
+                auto_adjust=True,
+                prepost=False,
+                threads=False,
+                proxy=None
+            )
+            if not result.empty:
+                return result[fields]
+        except Exception as e:
+            logger.log_error("download_strategy", f"Strategy 5 failed: {e}")
+        
+        raise DataDownloadError("All download strategies failed")
 
 
 class InfoDownloader:
@@ -203,6 +341,18 @@ class RobustBatchPriceDownloader:
     def _download_prices(self) -> pd.DataFrame:
         """Internal method to download prices with fallback for intraday data"""
         from datetime import timedelta
+        
+        # Check if running on Streamlit Cloud
+        if is_streamlit_cloud():
+            logger.log_data_download(self.ticker_list, True, 0, "Using cloud-compatible downloader")
+            try:
+                result = CloudCompatibleDownloader.download_with_fallbacks(
+                    self.ticker_list, self.start, self.end, self.interval, self.fields
+                )
+                return result
+            except Exception as e:
+                logger.log_error("cloud_download", f"Cloud downloader failed: {e}")
+                # Fall back to standard method
         
         # Define fallback date ranges for intraday data
         fallback_ranges = []
