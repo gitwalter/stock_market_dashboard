@@ -63,14 +63,14 @@ def validate_ticker_list(tickers: List[str]) -> List[str]:
     return valid_tickers
 
 
-def validate_date_range(start_date: Union[str, datetime], 
-                       end_date: Union[str, datetime]) -> tuple[datetime, datetime]:
+def validate_date_range(start_date: Union[str, datetime, 'date'], 
+                       end_date: Union[str, datetime, 'date']) -> tuple[datetime, datetime]:
     """
     Validate date range
     
     Args:
-        start_date: Start date
-        end_date: End date
+        start_date: Start date (can be string, datetime, or date object)
+        end_date: End date (can be string, datetime, or date object)
         
     Returns:
         Tuple of (start_date, end_date) as datetime objects
@@ -84,6 +84,20 @@ def validate_date_range(start_date: Union[str, datetime],
             start_date = pd.to_datetime(start_date)
         if isinstance(end_date, str):
             end_date = pd.to_datetime(end_date)
+        
+        # Convert date objects to datetime objects (for Streamlit date_input)
+        if hasattr(start_date, 'date') and not hasattr(start_date, 'hour'):
+            # It's a date object, convert to datetime
+            start_date = datetime.combine(start_date, datetime.min.time())
+        if hasattr(end_date, 'date') and not hasattr(end_date, 'hour'):
+            # It's a date object, convert to datetime
+            end_date = datetime.combine(end_date, datetime.min.time())
+        
+        # Alternative check for date objects
+        if hasattr(start_date, 'year') and not hasattr(start_date, 'hour'):
+            start_date = datetime.combine(start_date, datetime.min.time())
+        if hasattr(end_date, 'year') and not hasattr(end_date, 'hour'):
+            end_date = datetime.combine(end_date, datetime.min.time())
         
         # Validate date types
         if not isinstance(start_date, datetime) or not isinstance(end_date, datetime):
