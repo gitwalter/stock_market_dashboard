@@ -185,8 +185,26 @@ class StockMarketDashboard:
             return
 
         st.write(title)
+        
+        # Handle MultiIndex columns from yfinance
+        if isinstance(prices.columns, pd.MultiIndex):
+            # For MultiIndex, we need to select the specific ticker columns
+            if name in prices.columns.get_level_values(1):
+                # Select columns for this specific ticker
+                ticker_prices = prices.loc[:, (slice(None), name)]
+                # Flatten column names for cufflinks
+                ticker_prices.columns = ticker_prices.columns.get_level_values(0)
+            else:
+                # If ticker not found, use first available ticker
+                first_ticker = prices.columns.get_level_values(1)[0]
+                ticker_prices = prices.loc[:, (slice(None), first_ticker)]
+                ticker_prices.columns = ticker_prices.columns.get_level_values(0)
+        else:
+            # Single ticker case
+            ticker_prices = prices
+        
         # Create candlestick chart
-        qf = cf.QuantFig(prices, legend='bottom', name=name, title=title)
+        qf = cf.QuantFig(ticker_prices, legend='bottom', name=name, title=title)
         counter = 0
         for check in self.exponential_moving_averages['checked']:
             if check:
