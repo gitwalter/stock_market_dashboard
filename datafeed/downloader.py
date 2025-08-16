@@ -175,7 +175,7 @@ class InfoDownloader:
         
         self.ticker_name = ticker_name
         self.ticker = yf.Ticker(ticker_name)
-    
+
     @monitor_performance("info_download")
     def info(self) -> pd.DataFrame:
         """
@@ -305,8 +305,8 @@ class RobustBatchPriceDownloader:
         # Initialize data structure
         iterables = [self.fields, self.ticker_list]
         price_columns = pd.MultiIndex.from_product(iterables, names=["prices", "symbol"])
-        self.collected_prices = pd.DataFrame(columns=price_columns, index=pd.to_datetime([]))
-    
+        self.collected_prices = pd.DataFrame(columns=price_columns, index=pd.to_datetime([]))   
+        
     @monitor_performance("batch_price_download")
     def get_yahoo_prices(self) -> pd.DataFrame:
         """
@@ -409,7 +409,7 @@ class RobustBatchPriceDownloader:
                     # Handle column naming
                     if len(batch_list) > 1:
                         batch_download.columns = batch_download.columns.rename("prices", level=0)
-                        batch_download.columns = batch_download.columns.rename("symbol", level=1)
+                        batch_download.columns = batch_download.columns.rename("symbol", level=1)                       
                     
                     # Update collected prices
                     if self.collected_prices.empty:

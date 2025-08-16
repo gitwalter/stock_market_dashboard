@@ -41,19 +41,38 @@ class MinerviniMomentum(bt.Strategy):
     
     def next(self):
                
-        for d in self.datas:        
-           close = d.close[0]
-           sma50 = self.inds[d]['sma50'][0]
-           sma150 = self.inds[d]['sma150'][0]
-           sma200 = self.inds[d]['sma200'][0]
-           low_of_52week = self.inds[d]['low_of_52week'][0]
-           high_of_52week = self.inds[d]['high_of_52week'][0]
+        for d in self.datas:
+           # Skip if not enough data
+           if len(d) < self.params.sma200:
+               continue
+               
+           # Safely get indicator values with bounds checking
+           try:
+               close = d.close[0]
+               sma50 = self.inds[d]['sma50'][0]
+               sma150 = self.inds[d]['sma150'][0]
+               sma200 = self.inds[d]['sma200'][0]
+               low_of_52week = self.inds[d]['low_of_52week'][0]
+               high_of_52week = self.inds[d]['high_of_52week'][0]
+               
+               # Skip if any indicator is not valid or None
+               if not all([sma50 is not None, sma150 is not None, sma200 is not None, 
+                          low_of_52week is not None, high_of_52week is not None,
+                          sma50 > 0, sma150 > 0, sma200 > 0, low_of_52week > 0, high_of_52week > 0]):
+                   continue
+           except (IndexError, TypeError, AttributeError):
+               # Skip this data feed if we can't access the indicators
+               continue
                      
            
+           # Safely get sma200 value from 20 bars ago
            try:
-               sma200_20 = self.inds[d]['sma200'][-20]
-           except Exception:
-                sma200_20 = 0
+               if len(self.inds[d]['sma200']) > 20:
+                   sma200_20 = self.inds[d]['sma200'][-20]
+               else:
+                   sma200_20 = sma200  # Use current value if not enough history
+           except (IndexError, TypeError):
+               sma200_20 = sma200  # Fallback to current value
            
            # Condition 1: Current Price > 150 SMA and > 200 SMA
            if close > sma150 > sma200:
@@ -105,24 +124,48 @@ class MinerviniMomentum(bt.Strategy):
                pos = self.getposition(d).size
         
                if not pos and not self.order[d]:
-                   equities = len(self.datas)
-                   size = int(((self.broker.get_cash() / close)) / equities) - 100
-                   if size > 0:
-                       self.order[d] = self.buy(data=d, size=size)
+                   try:
+                       equities = len(self.datas)
+                       cash = self.broker.get_cash()
+                       if cash > 0 and close > 0:
+                           size = int(((cash * 0.95 / close)) / equities)
+                           if size > 0:
+                               self.order[d] = self.buy(data=d, size=size)
+                   except (ZeroDivisionError, ValueError, TypeError):
+                       # Skip this trade if there are calculation issues
+                       continue
                        
                
                
                
            else:
-               position_size = self.getposition(d).size
-               if position_size and not condition_3:
-                   # sell is done by trailing stop
-                   # if sma200 crosses below sma200 20 days ago
-                    self.order[d] = self.close(data=d, size=position_size)
+               try:
+                   position_size = self.getposition(d).size
+                   if position_size and not condition_3:
+                       # sell is done by trailing stop
+                       # if sma200 crosses below sma200 20 days ago
+                       self.order[d] = self.close(data=d, size=position_size)
+               except (AttributeError, TypeError):
+                   # Skip if there are issues with position access
+                   continue
+           
+           # Close position at the end of the period if still holding
+           position_size = self.getposition(d).size
+           if position_size > 0 and not self.order[d]:
+               # Check if this is the last bar - use safer method
+               try:
+                   if len(d) >= d.buflen() - 1:  # Last or second-to-last bar
+                       self.order[d] = self.sell(data=d, size=position_size)
+                       self.log(f'FINAL SELL CREATE, {close:.2f}')
+               except (IndexError, AttributeError):
+                   # Fallback: close position if we're near the end
+                   if len(d) > 0:
+                       self.order[d] = self.sell(data=d, size=position_size)
+                       self.log(f'FINAL SELL CREATE (fallback), {close:.2f}')
                
            
     def notify_order(self, order):
-        dt, dn = self.datetime.date(), order.data._name
+        dt, dn = self.datetime.date(), getattr(order.data, '_name', 'Unknown')
         print('{} {} Order {} Status {}'.format(
             dt, dn, order.ref, order.getstatusname())
         )     
@@ -139,10 +182,7 @@ class MinerviniMomentum(bt.Strategy):
         elif order.status in [order.Canceled, order.Margin, order.Rejected]:
           self.log('Order Canceled/Margin/Rejected')
         
-       
-        
+        # Reset order for this data
         for d in self.datas:
-            if self.order[d] == None:
-                 continue
-             
-            self.order[d] = None
+            if self.order[d] == order:
+                self.order[d] = None

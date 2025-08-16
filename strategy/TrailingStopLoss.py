@@ -48,3 +48,7 @@ class TrailingStopLoss(bt.Strategy):
                           self.order.created.price, tcheck])
                 )
             )
+        
+        # Close position at the end of the period if still holding
+        if self.position and len(self.data) == self.data.buflen():
+            self.close()  # close long position

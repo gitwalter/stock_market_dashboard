@@ -11,15 +11,33 @@ class BuyAndHold(bt.Strategy):
         self.val_start = self.broker.get_cash()  # keep the starting cash
 
     def next(self):
-        for d in self.datas:   
+        for d in self.datas:
+            # Skip if not enough data
+            if len(d) < 1:
+                continue
+                
             pos = self.getposition(d).size
+            
+            # Buy logic - only buy if we don't have a position and no pending order
             if not pos and not self.order[d]:
-                close = d.close[0]                
+                close = d.close[0]
+                
+                # Skip if close price is not valid
+                if not close or close <= 0:
+                    continue
+                    
                 equities = len(self.datas)            
                 # buy with 95% of cash
                 size = int(((self.broker.get_cash() * 0.95 / close)) / equities)
                 if size > 0:
                     self.order[d] = self.buy(data=d, size=size)
+            
+            # Sell logic - close position at the end of the period
+            elif pos > 0 and not self.order[d]:
+                # Check if this is the last bar
+                if len(d) == d.buflen():
+                    self.order[d] = self.sell(data=d, size=pos)
+                    self.log(f'SELL CREATE, {getattr(d, "_name", "Unknown")}, {d.close[0]:.2f}')
 
     def stop(self):
         # calculate the actual returns
@@ -32,7 +50,7 @@ class BuyAndHold(bt.Strategy):
         print(f'{dt.isoformat()} {txt}') #Print date and close
         
     def notify_order(self, order):
-        dt, dn = self.datetime.date(), order.data._name
+        dt, dn = self.datetime.date(), getattr(order.data, '_name', 'Unknown')
         print('{} {} Order {} Status {}'.format(
             dt, dn, order.ref, order.getstatusname())
         )

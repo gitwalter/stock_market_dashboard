@@ -73,16 +73,27 @@ class RSIStrategy(bt.Strategy):
             if self.order[d]:
                 continue
             
+            # Safety checks for data availability
+            if len(d) < 1 or len(self.rsi[d]) < 1:
+                continue
+                
             # Get current position
             position = self.getposition(d).size
             
-            # Get current RSI value
+            # Get current RSI value with safety check
             rsi_value = self.rsi[d][0]
+            if rsi_value is None or rsi_value != rsi_value:  # Check for NaN
+                continue
+                
+            # Safety check for close price
+            if d.close[0] is None or d.close[0] <= 0:
+                continue
             
             # Trading logic
             if not position:  # No position
                 # Buy signal: RSI below oversold and starting to rise
                 if (rsi_value < self.params.oversold and 
+                    len(self.rsi[d]) > 1 and self.rsi[d][-1] is not None and
                     self.rsi[d][-1] < rsi_value):  # RSI is rising
                     
                     self.log(f'BUY CREATE, {d.close[0]:.2f}, RSI: {rsi_value:.2f}')
@@ -91,17 +102,26 @@ class RSIStrategy(bt.Strategy):
             else:  # Have position
                 # Sell signal: RSI above overbought and starting to fall
                 if (rsi_value > self.params.overbought and 
+                    len(self.rsi[d]) > 1 and self.rsi[d][-1] is not None and
                     self.rsi[d][-1] > rsi_value):  # RSI is falling
                     
                     self.log(f'SELL CREATE, {d.close[0]:.2f}, RSI: {rsi_value:.2f}')
                     self.order[d] = self.sell(data=d)
                 
                 # Exit signal: RSI crosses the exit level
-                elif ((self.rsi[d][-1] < self.params.rsi_exit and rsi_value > self.params.rsi_exit) or
-                      (self.rsi[d][-1] > self.params.rsi_exit and rsi_value < self.params.rsi_exit)):
+                elif (len(self.rsi[d]) > 1 and self.rsi[d][-1] is not None and
+                      ((self.rsi[d][-1] < self.params.rsi_exit and rsi_value > self.params.rsi_exit) or
+                       (self.rsi[d][-1] > self.params.rsi_exit and rsi_value < self.params.rsi_exit))):
                     
                     self.log(f'EXIT CREATE, {d.close[0]:.2f}, RSI: {rsi_value:.2f}')
                     self.order[d] = self.sell(data=d)
+            
+            # Close position at the end of the period if still holding
+            if position > 0 and not self.order[d]:
+                # Check if this is the last bar
+                if len(d) == d.buflen():
+                    self.order[d] = self.sell(data=d, size=position)
+                    self.log(f'FINAL SELL CREATE, {d.close[0]:.2f}, RSI: {rsi_value:.2f}')
     
     def log(self, txt, dt=None):
         """Logging function"""

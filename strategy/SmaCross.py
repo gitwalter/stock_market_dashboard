@@ -18,3 +18,7 @@ class SmaCross(bt.Strategy):
 
         elif self.crossover < 0:  # in the market & cross to the downside
             self.close()  # close long position
+        
+        # Close position at the end of the period if still holding
+        if self.position and len(self.data) == self.data.buflen():
+            self.close()  # close long position
