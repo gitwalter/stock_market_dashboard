@@ -27,6 +27,13 @@ from datafeed.downloader import BatchPriceDownloader, InfoDownloader
 from datafeed.etoro import SymbolScraper
 from analyzer.MomentumScore import MomentumScore
 
+# Import trading strategies
+from strategy.BuyAndHold import BuyAndHold
+from strategy.RSIStrategy import RSIStrategy
+from strategy.MinerviniMomentum import MinerviniMomentum
+from strategy.SmaCross import SmaCross
+from strategy.TrailingStopLoss import TrailingStopLoss
+
 
 def start():
     """Set directory and create application"""
